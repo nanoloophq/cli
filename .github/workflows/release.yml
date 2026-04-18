@@ -112,6 +112,7 @@ jobs:
           EOF
 
       - name: Publish platform package
+        shell: bash
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: cd pkg && npm publish --tag $TAG --access public
