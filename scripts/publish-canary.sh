@@ -31,7 +31,7 @@ cat > "$PUBLISH_DIR/package.json" << EOF
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/nanoloop/cli"
+    "url": "https://github.com/nanoloophq/cli"
   },
   "license": "MIT"
 }

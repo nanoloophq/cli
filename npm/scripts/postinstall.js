@@ -30,7 +30,7 @@ const binPath = path.join(binDir, isWindows ? 'nanoloop.exe' : 'nanoloop');
 
 fs.mkdirSync(binDir, { recursive: true });
 
-const baseUrl = `https://github.com/nanoloop/cli/releases/download/v${version}`;
+const baseUrl = `https://github.com/nanoloophq/cli/releases/download/v${version}`;
 const url = `${baseUrl}/${filename}`;
 
 function download(url, dest) {
