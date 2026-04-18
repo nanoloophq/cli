@@ -1,21 +1,20 @@
 {
   "name": "@nanoloop/cli",
-  "version": "0.0.0-canary.0",
+  "version": "0.0.0",
   "description": "Nanoloop CLI for uploading source maps",
   "bin": {
     "nanoloop": "bin/nanoloop"
   },
-  "scripts": {
-    "postinstall": "node scripts/postinstall.js"
+  "optionalDependencies": {
+    "@nanoloop/cli-darwin-arm64": "0.0.0",
+    "@nanoloop/cli-darwin-x64": "0.0.0",
+    "@nanoloop/cli-linux-x64": "0.0.0",
+    "@nanoloop/cli-linux-arm64": "0.0.0",
+    "@nanoloop/cli-win32-x64": "0.0.0"
   },
   "repository": {
     "type": "git",
     "url": "https://github.com/nanoloophq/cli"
   },
-  "license": "MIT",
-  "keywords": [
-    "nanoloop",
-    "source-maps",
-    "error-tracking"
-  ]
+  "license": "MIT"
 }

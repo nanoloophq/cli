@@ -10,26 +10,41 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: ubuntu-latest
-            goos: linux
-            goarch: amd64
-            binary: nanoloop-linux-amd64
-          - os: ubuntu-latest
-            goos: linux
-            goarch: arm64
-            binary: nanoloop-linux-arm64
-          - os: macos-latest
-            goos: darwin
-            goarch: amd64
-            binary: nanoloop-darwin-amd64
           - os: macos-latest
             goos: darwin
             goarch: arm64
-            binary: nanoloop-darwin-arm64
+            npm_pkg: cli-darwin-arm64
+            npm_os: darwin
+            npm_cpu: arm64
+            ext: ""
+          - os: macos-latest
+            goos: darwin
+            goarch: amd64
+            npm_pkg: cli-darwin-x64
+            npm_os: darwin
+            npm_cpu: x64
+            ext: ""
+          - os: ubuntu-latest
+            goos: linux
+            goarch: amd64
+            npm_pkg: cli-linux-x64
+            npm_os: linux
+            npm_cpu: x64
+            ext: ""
+          - os: ubuntu-latest
+            goos: linux
+            goarch: arm64
+            npm_pkg: cli-linux-arm64
+            npm_os: linux
+            npm_cpu: arm64
+            ext: ""
           - os: windows-latest
             goos: windows
             goarch: amd64
-            binary: nanoloop-windows-amd64.exe
+            npm_pkg: cli-win32-x64
+            npm_os: win32
+            npm_cpu: x64
+            ext: ".exe"
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -38,23 +53,50 @@ jobs:
         with:
           go-version: '1.22'
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
       - name: Build
+        shell: bash
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
         run: |
-          go build -ldflags="-s -w" -o ${{ matrix.binary }} .
+          VERSION="0.0.0-canary.${GITHUB_SHA::7}"
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          mkdir -p pkg/bin
+          go build -ldflags="-s -w" -o "pkg/bin/nanoloop${{ matrix.ext }}" .
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.binary }}
-          path: ${{ matrix.binary }}
+      - name: Create package.json
+        shell: bash
+        run: |
+          cat > pkg/package.json << EOF
+          {
+            "name": "@nanoloop/${{ matrix.npm_pkg }}",
+            "version": "$VERSION",
+            "os": ["${{ matrix.npm_os }}"],
+            "cpu": ["${{ matrix.npm_cpu }}"],
+            "bin": {
+              "nanoloop": "bin/nanoloop${{ matrix.ext }}"
+            },
+            "repository": {
+              "type": "git",
+              "url": "https://github.com/nanoloophq/cli"
+            },
+            "license": "MIT"
+          }
+          EOF
 
-  release:
+      - name: Publish platform package
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: cd pkg && npm publish --tag canary --access public
+
+  publish:
     needs: build
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -63,29 +105,15 @@ jobs:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
 
-      - uses: actions/download-artifact@v4
-        with:
-          path: dist
-          merge-multiple: true
-
-      - name: Create GitHub Release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          VERSION="0.0.0-canary.${GITHUB_SHA::7}"
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-
-          gh release create "v$VERSION" dist/* \
-            --title "v$VERSION" \
-            --notes "Canary release from ${{ github.sha }}" \
-            --prerelease
-
-      - name: Publish to npm
+      - name: Publish main package
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          mkdir -p publish/bin publish/scripts
-          cp npm/scripts/postinstall.js publish/scripts/
+          VERSION="0.0.0-canary.${GITHUB_SHA::7}"
+
+          mkdir -p publish/bin
+          cp npm/bin/nanoloop publish/bin/
+          chmod +x publish/bin/nanoloop
 
           cat > publish/package.json << EOF
           {
@@ -95,8 +123,12 @@ jobs:
             "bin": {
               "nanoloop": "bin/nanoloop"
             },
-            "scripts": {
-              "postinstall": "node scripts/postinstall.js"
+            "optionalDependencies": {
+              "@nanoloop/cli-darwin-arm64": "$VERSION",
+              "@nanoloop/cli-darwin-x64": "$VERSION",
+              "@nanoloop/cli-linux-x64": "$VERSION",
+              "@nanoloop/cli-linux-arm64": "$VERSION",
+              "@nanoloop/cli-win32-x64": "$VERSION"
             },
             "repository": {
               "type": "git",
