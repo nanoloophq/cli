@@ -78,9 +78,6 @@ jobs:
             "version": "$VERSION",
             "os": ["${{ matrix.npm_os }}"],
             "cpu": ["${{ matrix.npm_cpu }}"],
-            "bin": {
-              "nanoloop": "bin/nanoloop${{ matrix.ext }}"
-            },
             "repository": {
               "type": "git",
               "url": "https://github.com/nanoloophq/cli"
@@ -112,6 +109,7 @@ jobs:
           VERSION="0.0.0-canary.${GITHUB_SHA::7}"
 
           mkdir -p publish/bin
+          cp npm/install.js publish/
           cp npm/bin/nanoloop publish/bin/
           chmod +x publish/bin/nanoloop
 
@@ -122,6 +120,9 @@ jobs:
             "description": "Nanoloop CLI for uploading source maps",
             "bin": {
               "nanoloop": "bin/nanoloop"
+            },
+            "scripts": {
+              "postinstall": "node install.js"
             },
             "optionalDependencies": {
               "@nanoloop/cli-darwin-arm64": "$VERSION",

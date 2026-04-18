@@ -19,8 +19,9 @@ if (!pkg) {
 }
 
 let binPath;
+const ext = process.platform === 'win32' ? '.exe' : '';
 try {
-  binPath = require.resolve(`${pkg}/bin/nanoloop`);
+  binPath = require.resolve(`${pkg}/bin/nanoloop${ext}`);
 } catch {
   console.error(`Could not find binary for ${platform}.`);
   console.error(`Expected package: ${pkg}`);
