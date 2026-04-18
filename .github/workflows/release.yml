@@ -1,0 +1,109 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            goos: linux
+            goarch: amd64
+            binary: nanoloop-linux-amd64
+          - os: ubuntu-latest
+            goos: linux
+            goarch: arm64
+            binary: nanoloop-linux-arm64
+          - os: macos-latest
+            goos: darwin
+            goarch: amd64
+            binary: nanoloop-darwin-amd64
+          - os: macos-latest
+            goos: darwin
+            goarch: arm64
+            binary: nanoloop-darwin-arm64
+          - os: windows-latest
+            goos: windows
+            goarch: amd64
+            binary: nanoloop-windows-amd64.exe
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Build
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          go build -ldflags="-s -w" -o ${{ matrix.binary }} .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.binary }}
+          path: ${{ matrix.binary }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="0.0.0-canary.${GITHUB_SHA::7}"
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+          gh release create "v$VERSION" dist/* \
+            --title "v$VERSION" \
+            --notes "Canary release from ${{ github.sha }}" \
+            --prerelease
+
+      - name: Publish to npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          mkdir -p publish/bin publish/scripts
+          cp npm/scripts/postinstall.js publish/scripts/
+
+          cat > publish/package.json << EOF
+          {
+            "name": "@nanoloop/cli",
+            "version": "$VERSION",
+            "description": "Nanoloop CLI for uploading source maps",
+            "bin": {
+              "nanoloop": "bin/nanoloop"
+            },
+            "scripts": {
+              "postinstall": "node scripts/postinstall.js"
+            },
+            "repository": {
+              "type": "git",
+              "url": "https://github.com/nanoloop/cli"
+            },
+            "license": "MIT"
+          }
+          EOF
+
+          cd publish && npm publish --tag canary --access public
