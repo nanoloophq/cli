@@ -1,0 +1,32 @@
+#!/usr/bin/env node
+const { spawnSync } = require('child_process');
+const path = require('path');
+
+const PLATFORMS = {
+  'darwin-arm64': '@nanoloop/cli-darwin-arm64',
+  'darwin-x64': '@nanoloop/cli-darwin-x64',
+  'linux-x64': '@nanoloop/cli-linux-x64',
+  'linux-arm64': '@nanoloop/cli-linux-arm64',
+  'win32-x64': '@nanoloop/cli-win32-x64',
+};
+
+const platform = `${process.platform}-${process.arch}`;
+const pkg = PLATFORMS[platform];
+
+if (!pkg) {
+  console.error(`Unsupported platform: ${platform}`);
+  process.exit(1);
+}
+
+let binPath;
+try {
+  binPath = require.resolve(`${pkg}/bin/nanoloop`);
+} catch {
+  console.error(`Could not find binary for ${platform}.`);
+  console.error(`Expected package: ${pkg}`);
+  console.error('Try reinstalling: npm install @nanoloop/cli');
+  process.exit(1);
+}
+
+const result = spawnSync(binPath, process.argv.slice(2), { stdio: 'inherit' });
+process.exit(result.status ?? 1);

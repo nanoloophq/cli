@@ -1,5 +1,5 @@
 dist/
 publish/
-nanoloop
-nanoloop.exe
+/nanoloop
+/nanoloop.exe
 .DS_Store
