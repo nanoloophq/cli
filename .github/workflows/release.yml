@@ -3,10 +3,24 @@ name: Release
 on:
   push:
     branches: [main]
+    tags: ['v*']
   workflow_dispatch:
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Run tests
+        run: go test ./... -v
+
   build:
+    needs: test
     strategy:
       matrix:
         include:
@@ -58,14 +72,25 @@ jobs:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
 
+      - name: Determine version
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/v}"
+            TAG="latest"
+          else
+            VERSION="0.0.0-canary.${GITHUB_SHA::7}"
+            TAG="canary"
+          fi
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "TAG=$TAG" >> $GITHUB_ENV
+
       - name: Build
         shell: bash
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
         run: |
-          VERSION="0.0.0-canary.${GITHUB_SHA::7}"
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
           mkdir -p pkg/bin
           go build -ldflags="-s -w" -o "pkg/bin/nanoloop${{ matrix.ext }}" .
 
@@ -89,7 +114,7 @@ jobs:
       - name: Publish platform package
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: cd pkg && npm publish --tag canary --access public
+        run: cd pkg && npm publish --tag $TAG --access public
 
   publish:
     needs: build
@@ -102,12 +127,22 @@ jobs:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
 
+      - name: Determine version
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/v}"
+            TAG="latest"
+          else
+            VERSION="0.0.0-canary.${GITHUB_SHA::7}"
+            TAG="canary"
+          fi
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "TAG=$TAG" >> $GITHUB_ENV
+
       - name: Publish main package
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          VERSION="0.0.0-canary.${GITHUB_SHA::7}"
-
           mkdir -p publish/bin
           cp npm/install.js publish/
           cp npm/bin/nanoloop publish/bin/
@@ -139,4 +174,4 @@ jobs:
           }
           EOF
 
-          cd publish && npm publish --tag canary --access public
+          cd publish && npm publish --tag $TAG --access public

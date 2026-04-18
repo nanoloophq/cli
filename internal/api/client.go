@@ -8,7 +8,6 @@ import (
 	"mime/multipart"
 	"net/http"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/nanoloop/cli/internal/sourcemap"
@@ -69,7 +68,7 @@ func (c *Client) UploadSourceMaps(appID, release string, maps []sourcemap.File, 
 			return nil, fmt.Errorf("failed to read %s: %w", m.Path, err)
 		}
 
-		part, err := w.CreateFormFile("files", filepath.Base(m.Path))
+		part, err := w.CreateFormFile("files", m.Filename)
 		if err != nil {
 			return nil, err
 		}
